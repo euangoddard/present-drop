@@ -1,9 +1,37 @@
 import { Scene } from "phaser";
 
+const enum ImageKeys {
+  Background = "background",
+  DownArrow = "down-arrow",
+  Present = "present",
+  Chimney = "chimney",
+  Square = "square",
+}
+
+const enum TextKeys {
+  Remaining = "remaining",
+  Score = "score",
+}
+
+interface Texts {
+  [TextKeys.Remaining]: Phaser.GameObjects.Text;
+  [TextKeys.Score]: Phaser.GameObjects.Text;
+}
+
+const chimneyConfig = { x: 25, y: 575, stepX: 50 } as const;
+
 export class Game extends Scene {
   private chimneyGroup!: Phaser.GameObjects.Group;
   private presentGroup!: Phaser.Physics.Arcade.Group;
   private arrow!: Phaser.GameObjects.Image;
+  private texts!: Texts;
+
+  private readonly chimneyHits = [0, 0, 0, 0, 0, 0, 0, 0];
+  private remainingPresents = 8;
+
+  private get score(): number {
+    return this.chimneyHits.filter((hits) => !!hits).length;
+  }
 
   constructor() {
     super("Game");
@@ -12,27 +40,28 @@ export class Game extends Scene {
   preload() {
     this.load.setPath("assets");
 
-    this.load.image("background", "bg.jpg");
+    this.load.image(ImageKeys.Background, "bg.jpg");
 
-    this.load.image("down-arrow", "down-arrow.png");
-    this.load.image("present", "present.png");
-    this.load.image("chimney", "chimney.png");
-    this.load.image("square", "square.png");
+    this.load.image(ImageKeys.DownArrow, "down-arrow.png");
+    this.load.image(ImageKeys.Present, "present.png");
+    this.load.image(ImageKeys.Chimney, "chimney.png");
+    this.load.image(ImageKeys.Square, "square.png");
   }
 
   create() {
-    this.add.image(200, 300, "background");
+    this.add.image(200, 300, ImageKeys.Background);
     this.setupArrow();
     this.setupChimneys();
     this.setupPresents();
+    this.createInfoElements();
   }
 
   private setupArrow(): void {
-    this.arrow = this.add.image(20, 40, "down-arrow");
+    this.arrow = this.add.image(20, 40, ImageKeys.DownArrow);
     this.add.tween({
       targets: this.arrow,
       x: 380,
-      duration: 2000,
+      duration: 1600,
       ease: "Linear",
       yoyo: true,
       repeat: -1,
@@ -48,28 +77,29 @@ export class Game extends Scene {
 
   private setupChimneys(): void {
     this.chimneyGroup = this.physics.add.staticGroup({
-      key: "chimney",
+      key: ImageKeys.Chimney,
       frame: 0,
       repeat: 7,
-      setXY: { x: 25, y: 575, stepX: 50 },
+      setXY: chimneyConfig,
       setScale: { x: 0.1, y: 0.1 },
     });
   }
 
   private setupPresents(): void {
     this.presentGroup = this.physics.add.group({
-      defaultKey: "present",
+      defaultKey: ImageKeys.Present,
       maxSize: 7,
       collideWorldBounds: true,
     });
 
     const dividers = this.physics.add.staticGroup({});
     dividers.createMultiple({
-      key: "square",
+      key: ImageKeys.Square,
       frame: 0,
       repeat: 6,
       setXY: { x: 50, y: 550, stepX: 50 },
     });
+
     for (const divider of dividers.getChildren()) {
       divider.setCircle(8);
     }
@@ -78,31 +108,89 @@ export class Game extends Scene {
     this.physics.add.collider(
       this.presentGroup,
       this.chimneyGroup,
-      (present, chimney) => {
-        present.setVelocity(0, 0);
-        present.setImmovable(true);
-        present.setCollideWorldBounds(false);
-        present.setOrigin(0.5, 0.5);
-        this.add.tween({
-          targets: present,
-          scaleX: 0.5,
-          scaleY: 0.5,
-          duration: 200,
-          alpha: 0,
-          onComplete: () => {
-            present.destroy();
-          },
-        });
-        // TODO: Mark chimney as hit
+      (present) => {
+        this.handlePresentCollision(present);
       }
     );
   }
 
+  private handlePresentCollision(
+    present:
+      | Phaser.Physics.Arcade.Body
+      | Phaser.Types.Physics.Arcade.GameObjectWithBody
+      | Phaser.Tilemaps.Tile
+  ): void {
+    const { centerX } = present.getBounds();
+    const chimneyIndex = Math.floor(centerX / chimneyConfig.stepX);
+
+    present.destroy();
+
+    this.chimneyHits[chimneyIndex] += 1;
+    this.setText(TextKeys.Score, `${this.score}`);
+
+    const indicator = this.add
+      .image(
+        chimneyConfig.x + chimneyIndex * chimneyConfig.stepX,
+        chimneyConfig.y - chimneyConfig.stepX,
+        ImageKeys.Present
+      )
+      .setAlpha(0.1)
+      .setScale(0.05)
+      .setOrigin(0.5, 0.5);
+
+    this.add.tween({
+      targets: indicator,
+      duration: 250,
+      y: chimneyConfig.y,
+      alpha: 1,
+    });
+
+    if (this.remainingPresents === 0) {
+      this.showGameOver();
+    }
+  }
+
   private dropPresent(): void {
+    if (this.remainingPresents === 0) {
+      return;
+    }
+    this.remainingPresents -= 1;
     const present = this.presentGroup.create(this.arrow.x, this.arrow.y);
     present.setScale(0.05);
     present.setCollideWorldBounds(true);
     present.setBounce(0.5, 0.5);
     present.setCircle(256);
+    this.setText(TextKeys.Remaining, `${this.remainingPresents}`);
+  }
+
+  private createInfoElements(): void {
+    const style: Phaser.Types.GameObjects.Text.TextStyle = {
+      fontSize: "16px",
+      color: "#fff",
+      fontFamily: "Rubik Mono One",
+    };
+
+    this.texts = {
+      remaining: this.add.text(30, 13, `${this.remainingPresents}`, style),
+      score: this.add.text(380, 13, `${this.score}`, style),
+    };
+
+    this.add.image(10, 20, ImageKeys.Present).setScale(0.04);
+    this.add.image(362, 20, ImageKeys.Chimney).setScale(0.04);
+  }
+
+  private showGameOver(): void {
+    const text = this.add
+      .text(200, 300, `Game Over\nYou scored ${this.score}`, {
+        fontSize: "32px",
+        color: "#fff",
+        fontFamily: "Rubik Mono One",
+        align: "center",
+      })
+      .setOrigin(0.5, 0.5);
+  }
+
+  private setText(key: keyof Texts, value: string): void {
+    this.texts[key].setText(value);
   }
 }
