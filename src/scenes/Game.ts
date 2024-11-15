@@ -33,6 +33,10 @@ export class Game extends Scene {
     return this.chimneyHits.filter((hits) => !!hits).length;
   }
 
+  private get collidedPresents(): number {
+    return this.chimneyHits.reduce((acc, hits) => acc + hits, 0);
+  }
+
   constructor() {
     super("Game");
   }
@@ -145,7 +149,7 @@ export class Game extends Scene {
       alpha: 1,
     });
 
-    if (this.remainingPresents === 0) {
+    if (this.collidedPresents === this.chimneyHits.length) {
       this.showGameOver();
     }
   }
@@ -156,10 +160,13 @@ export class Game extends Scene {
     }
     this.remainingPresents -= 1;
     const present = this.presentGroup.create(this.arrow.x, this.arrow.y);
-    present.setScale(0.05);
-    present.setCollideWorldBounds(true);
-    present.setBounce(0.5, 0.5);
-    present.setCircle(256);
+    try {
+      present.setScale(0.05);
+      present.setCollideWorldBounds(true);
+      present.setBounce(0.5, 0.5);
+      present.setCircle(256);
+    } catch {}
+
     this.setText(TextKeys.Remaining, `${this.remainingPresents}`);
   }
 
@@ -180,7 +187,7 @@ export class Game extends Scene {
   }
 
   private showGameOver(): void {
-    const text = this.add
+    this.add
       .text(200, 300, `Game Over\nYou scored ${this.score}`, {
         fontSize: "32px",
         color: "#fff",
@@ -188,6 +195,33 @@ export class Game extends Scene {
         align: "center",
       })
       .setOrigin(0.5, 0.5);
+
+    const playAgain = this.add
+      .text(200, 400, "Play again", {
+        fontSize: "24px",
+        color: "#fff",
+        fontFamily: "Rubik Mono One",
+        align: "center",
+      })
+      .setOrigin(0.5, 0.5);
+
+    playAgain.setInteractive();
+    playAgain.on("pointerdown", () => {
+      for (let i = 0; i < this.chimneyHits.length; i++) {
+        this.chimneyHits[i] = 0;
+      }
+      this.remainingPresents = this.chimneyHits.length + 1;
+
+      this.scene.restart();
+    });
+
+    this.add.tween({
+      targets: playAgain,
+      duration: 250,
+      scale: 1.1,
+      yoyo: true,
+      repeat: -1,
+    });
   }
 
   private setText(key: keyof Texts, value: string): void {
