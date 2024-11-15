@@ -48,3 +48,24 @@ body {
     margin: 0 2px;
   }
 }
+
+a.button {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background-color: #007bff; /* Blue background */
+  color: #fff; /* White text */
+  text-decoration: none;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s ease-in-out;
+}
+
+a.button:hover {
+  background-color: #0062cc;
+}
+
+.text-center {
+  text-align: center;
+}
