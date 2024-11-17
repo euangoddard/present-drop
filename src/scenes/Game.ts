@@ -20,14 +20,20 @@ interface Texts {
 
 const chimneyConfig = { x: 25, y: 575, stepX: 50 } as const;
 
+const defaultConfig = {
+  presents: 8,
+  fontFamily: "Rubik Mono One",
+} as const;
+
 export class Game extends Scene {
   private chimneyGroup!: Phaser.GameObjects.Group;
   private presentGroup!: Phaser.Physics.Arcade.Group;
   private arrow!: Phaser.GameObjects.Image;
   private texts!: Texts;
+  private isRestarting = false;
 
   private readonly chimneyHits = [0, 0, 0, 0, 0, 0, 0, 0];
-  private remainingPresents = 8;
+  private remainingPresents: number = defaultConfig.presents;
 
   private get score(): number {
     return this.chimneyHits.filter((hits) => !!hits).length;
@@ -92,7 +98,7 @@ export class Game extends Scene {
   private setupPresents(): void {
     this.presentGroup = this.physics.add.group({
       defaultKey: ImageKeys.Present,
-      maxSize: 7,
+      maxSize: defaultConfig.presents,
       collideWorldBounds: true,
     });
 
@@ -155,17 +161,15 @@ export class Game extends Scene {
   }
 
   private dropPresent(): void {
-    if (this.remainingPresents === 0) {
+    if (this.remainingPresents === 0 || this.isRestarting) {
       return;
     }
     this.remainingPresents -= 1;
     const present = this.presentGroup.create(this.arrow.x, this.arrow.y);
-    try {
-      present.setScale(0.05);
-      present.setCollideWorldBounds(true);
-      present.setBounce(0.5, 0.5);
-      present.setCircle(256);
-    } catch {}
+    present.setScale(0.05);
+    present.setCollideWorldBounds(true);
+    present.setBounce(0.5, 0.5);
+    present.setCircle(256);
 
     this.setText(TextKeys.Remaining, `${this.remainingPresents}`);
   }
@@ -174,7 +178,7 @@ export class Game extends Scene {
     const style: Phaser.Types.GameObjects.Text.TextStyle = {
       fontSize: "16px",
       color: "#fff",
-      fontFamily: "Rubik Mono One",
+      fontFamily: defaultConfig.fontFamily,
     };
 
     this.texts = {
@@ -187,11 +191,12 @@ export class Game extends Scene {
   }
 
   private showGameOver(): void {
+    this.isRestarting = true;
     this.add
       .text(200, 300, `Game Over\nYou scored ${this.score}`, {
         fontSize: "32px",
         color: "#fff",
-        fontFamily: "Rubik Mono One",
+        fontFamily: defaultConfig.fontFamily,
         align: "center",
       })
       .setOrigin(0.5, 0.5);
@@ -200,7 +205,7 @@ export class Game extends Scene {
       .text(200, 400, "Play again", {
         fontSize: "24px",
         color: "#fff",
-        fontFamily: "Rubik Mono One",
+        fontFamily: defaultConfig.fontFamily,
         align: "center",
       })
       .setOrigin(0.5, 0.5);
@@ -210,9 +215,13 @@ export class Game extends Scene {
       for (let i = 0; i < this.chimneyHits.length; i++) {
         this.chimneyHits[i] = 0;
       }
-      this.remainingPresents = this.chimneyHits.length + 1;
+      this.remainingPresents = defaultConfig.presents;
 
       this.scene.restart();
+
+      setTimeout(() => {
+        this.isRestarting = false;
+      }, 100);
     });
 
     this.add.tween({
