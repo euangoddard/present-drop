@@ -1,24 +1,13 @@
 import { defineConfig } from "vite";
 
-const phasermsg = () => {
-  return {
-    name: "phasermsg",
-    buildStart() {
-      process.stdout.write(`Building for production...\n`);
-    },
-    buildEnd() {
-      const line = "---------------------------------------------------------";
-      process.stdout.write(line);
-      process.stdout.write(`✨ Done ✨\n`);
-    },
-  };
-};
-
 export default defineConfig({
-  base: "./",
-  logLevel: "warning",
+  logLevel: "info",
   build: {
     rollupOptions: {
+      input: {
+        main: "index.html",
+        play: "play.html",
+      },
       output: {
         manualChunks: {
           phaser: ["phaser"],
@@ -36,8 +25,4 @@ export default defineConfig({
       },
     },
   },
-  server: {
-    port: 8080,
-  },
-  plugins: [phasermsg()],
 });
