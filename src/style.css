@@ -6,11 +6,12 @@ body {
   font-family: Seravek, "Gill Sans Nova", Ubuntu, Calibri, "DejaVu Sans",
     source-sans-pro, sans-serif;
   font-weight: normal;
+  min-height: 100%;
 }
 
 #app {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
   display: flex;
   justify-content: center;
